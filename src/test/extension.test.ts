@@ -61,7 +61,7 @@ function MyComponent() {
     assert.strictEqual(document.getText(), expectedContent);
   });
 
-  test("Handle Unused Variables Test - Comment Mode", async () => {
+  test("Handle unused variables/functions Test - Comment Mode", async () => {
     // Set the configuration to use comment mode
     await vscode.workspace
       .getConfiguration("cleanCode")
@@ -71,7 +71,7 @@ function MyComponent() {
         vscode.ConfigurationTarget.Global
       );
 
-    // Create a test file with unused variables
+    // Create a test file with unused variables/functions
     const initialContent = `function processData() {
   const data = fetchData();
   const config = getConfig(); // Unused variable
@@ -94,7 +94,7 @@ function MyComponent() {
     const uri = await createTestFile(initialContent);
     const document = await openTextDocument(uri);
 
-    // Execute the handle unused variables command
+    // Execute the handle unused variables/functions command
     await vscode.commands.executeCommand("clean-code.handleUnusedVariables");
 
     // Wait for the edit to be applied
@@ -119,7 +119,7 @@ function MyComponent() {
     const uri = await createTestFile(initialContent);
     const document = await openTextDocument(uri);
 
-    // Execute the handle unused variables command
+    // Execute the handle unused variables/functions command
     await vscode.commands.executeCommand("clean-code.handleUnusedVariables");
 
     // Wait for the edit to be applied
