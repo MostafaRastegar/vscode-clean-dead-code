@@ -1,8 +1,8 @@
 {
   "name": "clean-dead-code",
   "displayName": "CleanDeadCode",
-  "description": "Remove unused imports and handle unused variables while preserving code structure",
-  "version": "0.1.3",
+  "description": "Remove unused imports and handle unused variables/functions while preserving code structure",
+  "version": "0.1.6",
   "author": "Mostafa Rastegar <m.rastegar991@gmail.com>",
   "license": "MIT",
   "publisher": "MostafaRastegar",
@@ -37,7 +37,7 @@
       },
       {
         "command": "clean-code.handleUnusedVariables",
-        "title": "Clean Code: Handle Unused Variables"
+        "title": "Clean Code: Handle unused variables/functions"
       },
       {
         "command": "clean-code.cleanAll",
@@ -74,7 +74,7 @@
         "cleanCode.autoHandleUnusedVariables": {
           "type": "boolean",
           "default": false,
-          "description": "Automatically handle unused variables on file save"
+          "description": "Automatically handle unused variables/functions on file save"
         },
         "cleanCode.unusedVariableAction": {
           "type": "string",
@@ -84,7 +84,7 @@
             "ignore"
           ],
           "default": "comment",
-          "description": "How to handle unused variables (comment out with TODO, add _ prefix, or ignore)"
+          "description": "How to handle unused variables/functions (comment out with TODO, add _ prefix, or ignore)"
         },
         "cleanCode.removeTrailingParameters": {
           "type": "boolean",

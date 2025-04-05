@@ -12,7 +12,7 @@ export function activate(context: vscode.ExtensionContext) {
     removeUnusedImports
   );
 
-  // Register command for handling unused variables
+  // Register command for handling unused variables/functions
   const handleUnusedVarsCommand = vscode.commands.registerCommand(
     "clean-code.handleUnusedVariables",
     handleUnusedVariables
@@ -94,7 +94,7 @@ async function removeUnusedImports() {
   }
 }
 
-// Command implementation for handling unused variables
+// Command implementation for handling unused variables/functions
 async function handleUnusedVariables() {
   const editor = vscode.window.activeTextEditor;
   if (!editor) {
@@ -113,13 +113,13 @@ async function handleUnusedVariables() {
   try {
     const edit = await performHandleUnusedVariables(document);
     if (!edit) {
-      vscode.window.showInformationMessage("No unused variables found");
+      vscode.window.showInformationMessage("No unused variables/functions found");
       return;
     }
 
     // Apply the edit
     await vscode.workspace.applyEdit(edit);
-    vscode.window.showInformationMessage("Unused variables have been handled");
+    vscode.window.showInformationMessage("unused variables/functions have been handled");
   } catch (error) {
     vscode.window.showErrorMessage(
       `Error: ${error instanceof Error ? error.message : String(error)}`
@@ -165,7 +165,7 @@ async function performRemoveUnusedImports(
   return edit;
 }
 
-// Logic for handling unused variables (returns a WorkspaceEdit or null if no changes)
+// Logic for handling unused variables/functions (returns a WorkspaceEdit or null if no changes)
 async function performHandleUnusedVariables(
   document: vscode.TextDocument
 ): Promise<vscode.WorkspaceEdit | null> {
@@ -177,7 +177,7 @@ async function performHandleUnusedVariables(
     true
   );
 
-  // Get the configuration for handling unused variables
+  // Get the configuration for handling unused variables/functions
   const config = vscode.workspace.getConfiguration("cleanCode");
   const unusedVarAction = config.get<string>("unusedVariableAction", "comment");
 
@@ -187,18 +187,21 @@ async function performHandleUnusedVariables(
     sourceFile,
     usedIdentifiers
   );
+  
+  // Find unused functions
+  const unusedFunctions = findUnusedFunctions(sourceFile, usedIdentifiers);
 
   // If nothing found, return null
-  if (unusedVariables.length === 0 && unusedParameters.length === 0) {
+  if (unusedVariables.length === 0 && unusedParameters.length === 0 && unusedFunctions.length === 0) {
     return null;
   }
 
   // Create a workspace edit
   const edit = new vscode.WorkspaceEdit();
 
-  // Handle unused variables based on configuration
+  // Handle unused variables/functions based on configuration
   if (unusedVarAction === "comment") {
-    // Comment out unused variables
+    // Comment out unused variables/functions
     for (const variable of unusedVariables) {
       // We need to get the entire variable declaration statement
       // This requires traversing up to find the parent VariableDeclarationList
@@ -225,25 +228,94 @@ async function performHandleUnusedVariables(
         const stmtRange = new vscode.Range(stmtStart, stmtEnd);
         const originalText = document.getText(stmtRange);
 
-        edit.replace(
-          document.uri,
-          stmtRange,
-          `// TODO: Unused variable\n// ${originalText}`
-        );
-      } else {
-        // Fallback to variable-only if we can't find the statement
-        const lineStart = document.positionAt(variable.getStart(sourceFile));
-        const lineEnd = document.positionAt(variable.getEnd());
-        const lineRange = new vscode.Range(lineStart, lineEnd);
-        const originalText = document.getText(lineRange);
+        // Split by lines and prefix each with a comment
+        const commentedText = originalText
+          .split('\n')
+          .map(line => `// ${line}`)
+          .join('\n');
 
         edit.replace(
           document.uri,
-          lineRange,
-          `// TODO: Unused variable\n// ${originalText}`
+          stmtRange,
+          `// TODO: Unused variable\n${commentedText}`
+        );
+      } else {
+        // Get the variable declaration - this is the entire declaration including initializer
+        let variableDeclaration = variable;
+        
+        // Get the range of the entire variable declaration including its initializer
+        const varStart = document.positionAt(variableDeclaration.getStart(sourceFile));
+        // Make sure we get the end of the full declaration including initialization
+        const varEnd = document.positionAt(variableDeclaration.getEnd());
+        const varRange = new vscode.Range(varStart, varEnd);
+        
+        // Get the full text of the variable declaration
+        let originalText = document.getText(varRange);
+        
+        // Check if we need to include the semicolon which might be outside node's range
+        const nextChar = document.getText(new vscode.Range(
+          varEnd,
+          document.positionAt(Math.min(variableDeclaration.getEnd() + 1, fileContent.length))
+        ));
+        
+        if (nextChar === ';') {
+          originalText += ';';
+        }
+        
+        // We need to get the variable declaration list to get the full statement
+        let currentNode: ts.Node = variable;
+        let variableDeclarationList: ts.VariableDeclarationList | null = null;
+        
+        while (currentNode && !variableDeclarationList) {
+          if (ts.isVariableDeclarationList(currentNode)) {
+            variableDeclarationList = currentNode;
+            break;
+          }
+          currentNode = currentNode.parent;
+        }
+        
+        if (variableDeclarationList) {
+          // Get the range that includes the 'let', 'const', or 'var' keyword
+          const listStart = document.positionAt(variableDeclarationList.getStart(sourceFile));
+          const fullVarRange = new vscode.Range(listStart, varEnd);
+          originalText = document.getText(fullVarRange);
+          
+          // Check for semicolon again
+          const nextChar = document.getText(new vscode.Range(
+            varEnd,
+            document.positionAt(Math.min(variableDeclaration.getEnd() + 1, fileContent.length))
+          ));
+          
+          if (nextChar === ';') {
+            originalText += ';';
+          }
+        }
+        
+        // Split by lines and prefix each with a comment
+        const commentedText = originalText
+          .split('\n')
+          .map(line => `// ${line}`)
+          .join('\n');
+        
+        // Since we're commenting out a variable that might span multiple lines,
+        // we need to use a range that covers the entire declaration
+        const fullRange = variableDeclarationList 
+          ? new vscode.Range(
+              document.positionAt(variableDeclarationList.getStart(sourceFile)),
+              document.positionAt(variableDeclaration.getEnd() + (nextChar === ';' ? 1 : 0))
+            )
+          : varRange;
+        
+        edit.replace(
+          document.uri,
+          fullRange,
+          `// TODO: Unused variable\n${commentedText}`
         );
       }
     }
+    
+    // Handle unused functions
+    handleUnusedFunctions(document, sourceFile, unusedFunctions, edit);
   }
 
   // Handle unused parameters by adding underscore prefix
@@ -312,7 +384,7 @@ function collectUsedIdentifiers(sourceFile: ts.SourceFile): Set<string> {
   return usedIdentifiers;
 }
 
-// Find unused variables and parameters
+// Find unused variables/functions and parameters
 function findUnusedVariablesAndParams(
   sourceFile: ts.SourceFile,
   usedIdentifiers: Set<string>
@@ -651,6 +723,135 @@ function cleanUnusedImports(
   result = cleanEmptyLines(result);
 
   return result;
+}
+
+
+// Function to find unused functions and methods
+function findUnusedFunctions(
+  sourceFile: ts.SourceFile,
+  usedIdentifiers: Set<string>
+): ts.FunctionDeclaration[] {
+  const unusedFunctions: ts.FunctionDeclaration[] = [];
+  const exportedFunctionsIds = new Set<string>();
+  
+  // First pass: collect exported function names to exclude them
+  // (as they might be used in other files)
+  function collectExports(node: ts.Node) {
+    // Check for export declarations
+    if (ts.isExportDeclaration(node)) {
+      // Handle named exports - export { func1, func2 };
+      if (node.exportClause && ts.isNamedExports(node.exportClause)) {
+        node.exportClause.elements.forEach(element => {
+          exportedFunctionsIds.add(element.name.text);
+        });
+      }
+    }
+    // Check for exported functions - export function name() {}
+    else if (ts.isFunctionDeclaration(node) && node.modifiers) {
+      for (const modifier of node.modifiers) {
+        if (modifier.kind === ts.SyntaxKind.ExportKeyword && node.name) {
+          exportedFunctionsIds.add(node.name.text);
+          break;
+        }
+      }
+    }
+    // Check for default exports - export default function() {}
+    else if (ts.isExportAssignment(node)) {
+      // We'll consider any default export as used
+      if (node.expression && ts.isIdentifier(node.expression)) {
+        exportedFunctionsIds.add(node.expression.text);
+      }
+    }
+    
+    ts.forEachChild(node, collectExports);
+  }
+  
+  // Start collecting exports
+  collectExports(sourceFile);
+  
+  // Second pass: find unused functions
+  function visit(node: ts.Node) {
+    if (ts.isFunctionDeclaration(node) && node.name) {
+      const funcName = node.name.text;
+      
+      // Skip if the function name starts with underscore (convention for intentionally unused)
+      if (!funcName.startsWith('_') && 
+          !usedIdentifiers.has(funcName) && 
+          !exportedFunctionsIds.has(funcName)) {
+        // Skip special functions like React components that might be used in JSX
+        if (!isReactComponent(node) && !isEventHandler(node)) {
+          unusedFunctions.push(node);
+        }
+      }
+    }
+    
+    ts.forEachChild(node, visit);
+  }
+  
+  // Start collecting unused functions
+  ts.forEachChild(sourceFile, visit);
+  
+  return unusedFunctions;
+}
+
+// Helper to check if a function might be a React component
+function isReactComponent(node: ts.FunctionDeclaration): boolean {
+  // React components start with uppercase letter by convention
+  if (node.name && /^[A-Z]/.test(node.name.text)) {
+    // Additionally check the return statement for JSX
+    let hasJsxReturn = false;
+    
+    function checkForJsx(n: ts.Node) {
+      if (ts.isJsxElement(n) || ts.isJsxFragment(n) || ts.isJsxSelfClosingElement(n)) {
+        hasJsxReturn = true;
+        return;
+      }
+      ts.forEachChild(n, checkForJsx);
+    }
+    
+    if (node.body) {
+      checkForJsx(node.body);
+    }
+    
+    return hasJsxReturn;
+  }
+  
+  return false;
+}
+
+// Helper to check if a function might be an event handler
+function isEventHandler(node: ts.FunctionDeclaration): boolean {
+  // Event handlers often have names like 'onClick', 'handleClick', etc.
+  return node.name ? 
+    /^(on[A-Z]|handle[A-Z])/.test(node.name.text) : 
+    false;
+}
+
+// Function to handle (comment out) unused functions
+function handleUnusedFunctions(
+  document: vscode.TextDocument,
+  sourceFile: ts.SourceFile,
+  unusedFunctions: ts.FunctionDeclaration[],
+  edit: vscode.WorkspaceEdit
+) {
+  for (const func of unusedFunctions) {
+    const funcStart = document.positionAt(func.getStart(sourceFile));
+    const funcEnd = document.positionAt(func.getEnd());
+    const funcRange = new vscode.Range(funcStart, funcEnd);
+    const originalText = document.getText(funcRange);
+    
+    // Split by lines and prefix each with a comment
+    const commentedText = originalText
+      .split('\n')
+      .map(line => `// ${line}`)
+      .join('\n');
+    
+    edit.replace(
+      document.uri,
+      funcRange,
+      `// TODO: Unused function\n${commentedText}`
+    );
+  }
 }
 
 // Clean up empty lines after imports are removed

@@ -2,7 +2,7 @@
 
 A VSCode extension for removing dead code in JavaScript and TypeScript files, focusing on:
 1. Removing unused imports without changing their order
-2. Managing unused variables and parameters
+2. Managing unused variables/functions and parameters
 
 ## Features
 
@@ -15,8 +15,8 @@ A VSCode extension for removing dead code in JavaScript and TypeScript files, fo
   - Namespace imports: `import * as ReactDOM from 'react-dom'`
   - Side-effect imports: `import 'styles.css'`
 
-### 2. Manage Unused Variables and Parameters
-- Regular unused variables: comment out with TODO or add `_` prefix
+### 2. Manage unused variables/functions and Parameters
+- Regular unused variables/functions: comment out with TODO or add `_` prefix
 - Unused function parameters:
   - Add `_` prefix to unused parameters at the beginning or middle of functions
   - Optionally remove unused parameters at the end of functions (after the last used parameter)
@@ -33,7 +33,7 @@ A VSCode extension for removing dead code in JavaScript and TypeScript files, fo
    - Right-click on the editor and select one of the "Clean Code" commands from the context menu
    - Use keyboard shortcuts:
      - `Ctrl+Alt+U` (Win/Linux) or `Cmd+Alt+U` (Mac) to remove unused imports
-     - `Ctrl+Alt+V` (Win/Linux) or `Cmd+Alt+V` (Mac) to handle unused variables
+     - `Ctrl+Alt+V` (Win/Linux) or `Cmd+Alt+V` (Mac) to handle unused variables/functions
      - `Ctrl+Alt+C` (Win/Linux) or `Cmd+Alt+C` (Mac) to perform both operations simultaneously
    - Open the Command Palette with `Ctrl+Shift+P` or `Cmd+Shift+P` and search for "Clean Code"
 
@@ -42,7 +42,7 @@ A VSCode extension for removing dead code in JavaScript and TypeScript files, fo
 2. Search for "Clean Code"
 3. Enable auto options:
    - `cleanCode.autoRemoveUnusedImports`: Automatically remove unused imports on save
-   - `cleanCode.autoHandleUnusedVariables`: Automatically handle unused variables on save
+   - `cleanCode.autoHandleUnusedVariables`: Automatically handle unused variables/functions on save
 
 ## Settings
 
@@ -51,8 +51,8 @@ This extension provides the following settings:
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `cleanCode.autoRemoveUnusedImports` | `false` | Automatically remove unused imports on file save |
-| `cleanCode.autoHandleUnusedVariables` | `false` | Automatically handle unused variables on file save |
-| `cleanCode.unusedVariableAction` | `comment` | How to handle unused variables. Options: `comment` (add TODO comment), `prefix` (add `_` prefix), or `ignore` (do nothing) |
+| `cleanCode.autoHandleUnusedVariables` | `false` | Automatically handle unused variables/functions on file save |
+| `cleanCode.unusedVariableAction` | `comment` | How to handle unused variables/functions. Options: `comment` (add TODO comment), `prefix` (add `_` prefix), or `ignore` (do nothing) |
 | `cleanCode.removeTrailingParameters` | `true` | Remove unused parameters at the end of functions (after the last used parameter) |
 
 ## Installation
@@ -100,7 +100,7 @@ function MyComponent() {
 }
 ```
 
-### Managing Unused Variables
+### Managing unused variables/functions
 
 **Before:**
 ```javascript
@@ -130,7 +130,7 @@ function processData(_userId, userName) {
 
 ## Known Limitations
 
-- Detection of unused variables may not be 100% accurate in complex codebases with static analysis
+- Detection of unused variables/functions may not be 100% accurate in complex codebases with static analysis
 - Support for JSX/TSX for variables and parameters might not be complete in some edge cases
 - Type parameters in TypeScript might be incorrectly flagged as unused
 
